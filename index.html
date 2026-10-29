@@ -128,6 +128,21 @@ label.f{display:block;font-size:12.5px;color:var(--mute);margin-bottom:5px}
 .ing .nums input{padding:8px;font-size:14px;text-align:center}
 .ing .st{font-size:12px;color:var(--mute);margin-top:6px}
 .ing .st.ok{color:var(--accent)}
+/* trends */
+.seg{display:flex;background:var(--line);border-radius:999px;padding:3px;margin-bottom:14px}
+.seg button{flex:1;padding:7px;border-radius:999px;font-weight:600;font-size:14px;color:var(--mute)}
+.seg button.on{background:var(--card);color:var(--ink)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+.stat b{display:block;font-size:26px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat span{font-size:12.5px;color:var(--mute)}
+.chart{width:100%;height:auto;display:block;overflow:visible}
+.chart text{font-size:10px;fill:var(--mute)}
+.chart .bar{fill:var(--ink)} .chart .bar.over{fill:var(--accent)} .chart .bar.none{fill:var(--line)}
+.chart .tl{stroke:var(--accent);stroke-width:1.5;stroke-dasharray:4 4}
+.chart .wl{fill:none;stroke:var(--ink);stroke-width:2;stroke-linejoin:round}
+.chart .wd{fill:var(--accent)}
+.split{display:flex;height:14px;border-radius:999px;overflow:hidden;gap:2px;margin:10px 0 8px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(110px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30;white-space:nowrap}
 .toast.show{opacity:1}
 .datebar{display:flex;align-items:center;justify-content:space-between;margin:6px 0 18px}
@@ -170,6 +185,23 @@ label.f{display:block;font-size:12.5px;color:var(--mute);margin-bottom:5px}
   <div class="card" id="recipeList"></div>
 </section>
 
+<!-- TRENDS -->
+<section class="screen" id="s-trends">
+  <h1 style="margin-bottom:14px">Trends</h1>
+  <div class="seg"><button class="on" onclick="setRange(7,this)">7 days</button><button onclick="setRange(30,this)">30 days</button><button onclick="setRange(90,this)">90 days</button></div>
+  <div class="stack">
+    <div class="card"><h2>Calories per day</h2><svg class="chart" id="kcalChart" viewBox="0 0 320 150"></svg></div>
+    <div class="stats" id="stats"></div>
+    <div class="card"><h2>Average macro split</h2><div id="split"></div></div>
+    <div class="card">
+      <div class="row between" style="margin-bottom:10px"><h2 style="margin:0">Weight</h2>
+        <div class="row"><input type="number" id="wIn" inputmode="decimal" placeholder="kg" style="width:90px;padding:8px 10px"><button class="btn sm" onclick="addWeight()">Add</button></div></div>
+      <svg class="chart" id="wChart" viewBox="0 0 320 130"></svg>
+      <div id="wList" class="muted small" style="margin-top:8px"></div>
+    </div>
+  </div>
+</section>
+
 <!-- SETTINGS -->
 <section class="screen" id="s-settings">
   <h1 style="margin-bottom:14px">Targets</h1>
@@ -204,6 +236,8 @@ label.f{display:block;font-size:12.5px;color:var(--mute);margin-bottom:5px}
       </div>
       <input type="file" id="importFile" accept="application/json,.json" style="display:none" onchange="importData(this.files[0])">
       <p class="muted small" style="margin-top:10px">Everything lives in this browser only. Export now and then; clearing Safari data erases it.</p>
+      <button class="btn ghost" style="margin-top:12px" onclick="testConn()">Test connection</button>
+      <pre class="small muted" id="connOut" style="white-space:pre-wrap;margin-top:8px;font-family:inherit"></pre>
     </div>
     <div class="card">
       <h2>Reset</h2>
@@ -218,6 +252,7 @@ label.f{display:block;font-size:12.5px;color:var(--mute);margin-bottom:5px}
   <button class="on" data-s="today" onclick="go('today')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Today</button>
   <button data-s="library" onclick="go('library')"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg>Foods</button>
   <button data-s="recipes" onclick="go('recipes')"><svg viewBox="0 0 24 24"><path d="M5 20c0-6 3-9 7-9s7 3 7 9"/><path d="M4 20h16M12 4v3M8 6l1 2M16 6l-1 2"/></svg>Recipes</button>
+  <button data-s="trends" onclick="go('trends')"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16"/><path d="M7 15l4-5 3 3 5-7"/></svg>Trends</button>
   <button data-s="settings" onclick="go('settings')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.5-2.3 1a7 7 0 0 0-2-1.2L14.2 2h-4.4l-.4 2.6a7 7 0 0 0-2 1.2l-2.3-1-2 3.5 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.5 2.3-1a7 7 0 0 0 2 1.2l.4 2.6h4.4l.4-2.6a7 7 0 0 0 2-1.2l2.3 1 2-3.5-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>Settings</button>
 </nav>
 
@@ -244,7 +279,7 @@ function toast(m){const t=document.getElementById('toast');t.textContent=m;t.cla
 function go(s){document.querySelectorAll('.screen').forEach(e=>e.classList.toggle('active',e.id==='s-'+s));
   document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.s===s));
   document.getElementById('fab').style.display=s==='today'?'flex':'none';
-  if(s==='today')renderToday();if(s==='library')renderLibrary();if(s==='recipes')renderRecipes();if(s==='settings')renderSettings();
+  if(s==='today')renderToday();if(s==='library')renderLibrary();if(s==='recipes')renderRecipes();if(s==='settings')renderSettings();if(s==='trends')renderTrends();
   window.scrollTo(0,0)}
 function shiftDay(n){const d=new Date(day+'T12:00:00');d.setDate(d.getDate()+n);day=iso(d);renderToday()}
 
@@ -481,6 +516,62 @@ async function ocr(file){if(!file)return;const msg=document.getElementById('ocrM
     msg.textContent='Done. Keep only the ingredient lines, fix any misreads, then match.'}
   catch(e){msg.textContent='Text recognition failed. Type the ingredients instead.'}}
 function downscale(file,max){return new Promise(ok=>{const img=new Image();img.onload=()=>{const s=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=img.width*s;c.height=img.height*s;c.getContext('2d').drawImage(img,0,0,c.width,c.height);ok(c)};img.src=URL.createObjectURL(file)})}
+
+/* ---------- trends ---------- */
+let _range=7;
+function setRange(n,b){_range=n;b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));renderTrends()}
+function lastDays(n){const out=[];const d=new Date();for(let i=n-1;i>=0;i--){const x=new Date(d);x.setDate(d.getDate()-i);out.push(iso(x))}return out}
+function renderTrends(){const days=lastDays(_range);const T=S.targets;
+  const rows=days.map(dd=>({d:dd,...totals(S.log[dd]||[])}));const logged=rows.filter(r=>r.kcal>0);
+  // kcal chart
+  const W=320,H=150,pad={l:28,r:4,t:8,b:18};const maxK=Math.max(T.kcal*1.15,...rows.map(r=>r.kcal))||1;
+  const bw=(W-pad.l-pad.r)/rows.length;const y=v=>pad.t+(H-pad.t-pad.b)*(1-v/maxK);
+  const gridV=[0,T.kcal];let svg='';
+  svg+=rows.map((r,i)=>{const h=H-pad.b-y(r.kcal);const cls=r.kcal===0?'none':r.kcal>T.kcal?'over':'';const hh=r.kcal===0?2:h;
+    return `<rect class="bar ${cls}" x="${(pad.l+i*bw+bw*0.15).toFixed(1)}" y="${(H-pad.b-hh).toFixed(1)}" width="${(bw*0.7).toFixed(1)}" height="${hh.toFixed(1)}" rx="${Math.min(3,bw*0.3)}"/>`}).join('');
+  svg+=`<line class="tl" x1="${pad.l}" x2="${W-pad.r}" y1="${y(T.kcal).toFixed(1)}" y2="${y(T.kcal).toFixed(1)}"/>`;
+  svg+=`<text x="0" y="${y(T.kcal)+3}">${T.kcal}</text><text x="0" y="${H-pad.b}">0</text>`;
+  const step=_range<=7?1:_range<=30?7:30;
+  svg+=rows.map((r,i)=>(i%step===0||(_range<=7))?`<text x="${(pad.l+i*bw+bw/2).toFixed(1)}" y="${H-4}" text-anchor="middle">${_range<=7?new Date(r.d+'T12:00:00').toLocaleDateString(undefined,{weekday:'narrow'}):r.d.slice(5)}</text>`:'').join('');
+  document.getElementById('kcalChart').innerHTML=svg;
+  // stats
+  const avg=k=>logged.length?logged.reduce((a,r)=>a+r[k],0)/logged.length:0;
+  const onTarget=logged.filter(r=>r.kcal<=T.kcal).length;
+  const deficit=logged.reduce((a,r)=>a+(T.kcal-r.kcal),0);
+  document.getElementById('stats').innerHTML=`
+    <div class="stat"><b>${r0(avg('kcal')).toLocaleString()}</b><span>avg kcal on logged days</span></div>
+    <div class="stat"><b>${logged.length}<small style="font-size:14px;color:var(--mute)"> / ${_range}</small></b><span>days logged</span></div>
+    <div class="stat"><b>${onTarget}<small style="font-size:14px;color:var(--mute)"> / ${logged.length}</small></b><span>days at or under target</span></div>
+    <div class="stat"><b>${deficit>=0?'−':'+'}${r0(Math.abs(deficit)).toLocaleString()}</b><span>net kcal vs target${logged.length?'':' (nothing logged)'}</span></div>`;
+  // macro split
+  const P=avg('p')*4,C=avg('c')*4,F=avg('f')*9,tot=P+C+F||1;
+  document.getElementById('split').innerHTML=logged.length?`<div class="split"><i style="flex:${P/tot};background:var(--p)"></i><i style="flex:${C/tot};background:var(--c)"></i><i style="flex:${F/tot};background:var(--f)"></i></div>
+    <div class="legend"><div><em style="background:var(--p)"></em>Protein<b>${r0(P/tot*100)}%</b></div><div><em style="background:var(--c)"></em>Carbs<b>${r0(C/tot*100)}%</b></div><div><em style="background:var(--f)"></em>Fat<b>${r0(F/tot*100)}%</b></div></div>
+    <p class="muted small" style="margin-top:10px">Daily average: P ${r0(avg('p'))} g · C ${r0(avg('c'))} g · F ${r0(avg('f'))} g. Target split: ${r0(T.p*4/(T.p*4+T.c*4+T.f*9)*100)} / ${r0(T.c*4/(T.p*4+T.c*4+T.f*9)*100)} / ${r0(T.f*9/(T.p*4+T.c*4+T.f*9)*100)}%.</p>`
+    :'<div class="empty" style="padding:14px">Log a few days to see your split.</div>';
+  renderWeight(days)}
+function addWeight(){const v=+document.getElementById('wIn').value;if(!v){toast('Enter a weight');return}
+  (S.weights=S.weights||{})[iso(new Date())]=v;save();document.getElementById('wIn').value='';renderTrends();toast('Weight saved')}
+function renderWeight(days){const w=S.weights||{};const first=days[0];const pts=Object.keys(w).filter(d=>d>=first).sort().map(d=>({d,v:w[d]}));
+  const svgEl=document.getElementById('wChart'),list=document.getElementById('wList');
+  if(pts.length<1){svgEl.innerHTML='';list.innerHTML='Add a weigh-in to start the trend line. Weekly is plenty.';return}
+  const W=320,H=130,pad={l:34,r:8,t:10,b:18};const vs=pts.map(p=>p.v);let lo=Math.min(...vs),hi=Math.max(...vs);if(hi-lo<2){lo-=1;hi+=1}
+  const t0=new Date(first+'T12:00:00').getTime(),t1=new Date(days[days.length-1]+'T12:00:00').getTime();
+  const x=d=>pad.l+(W-pad.l-pad.r)*((new Date(d+'T12:00:00').getTime()-t0)/Math.max(t1-t0,1));const y=v=>pad.t+(H-pad.t-pad.b)*(1-(v-lo)/(hi-lo));
+  let svg=`<text x="0" y="${pad.t+4}">${hi.toFixed(1)}</text><text x="0" y="${H-pad.b}">${lo.toFixed(1)}</text>`;
+  if(pts.length>1)svg+=`<path class="wl" d="${pts.map((p,i)=>(i?'L':'M')+x(p.d).toFixed(1)+' '+y(p.v).toFixed(1)).join(' ')}"/>`;
+  svg+=pts.map(p=>`<circle class="wd" cx="${x(p.d).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="3.5"/>`).join('');
+  svgEl.innerHTML=svg;
+  const last=pts[pts.length-1],firstP=pts[0];const diff=last.v-firstP.v;
+  list.innerHTML=`Latest ${last.v} kg (${last.d.slice(5)})${pts.length>1?` · ${diff>0?'+':''}${diff.toFixed(1)} kg over this period`:''} <button class="x" style="font-size:12px" onclick="delete S.weights['${last.d}'];save();renderTrends()">remove latest</button>`}
+
+async function testConn(){const out=document.getElementById('connOut');out.textContent='Testing…\n';
+  const tests=[['Product lookup',`${OFF}/api/v2/product/3017620422003.json?fields=product_name`],['Text search (classic)',`${OFF}/cgi/search.pl?search_terms=coffee&search_simple=1&action=process&json=1&page_size=1&fields=product_name`],['Text search (new)',`https://search.openfoodfacts.org/search?q=coffee&page_size=1&fields=product_name`]];
+  let lines=[`Page: ${location.protocol}//${location.host}`,`Browser: ${navigator.userAgent.replace(/\(.*?\)/g,'').trim().slice(0,60)}`,`Online: ${navigator.onLine}`];
+  for(const [n,u] of tests){try{const t=Date.now();const r=await fetch(u);const j=await r.json().catch(()=>({}));
+      lines.push(`${n}: HTTP ${r.status} in ${Date.now()-t} ms${j.product?.product_name?' – '+j.product.product_name:''}${(j.products||j.hits)?' – '+(j.products||j.hits).length+' result(s)':''}`)}
+    catch(e){lines.push(`${n}: ${e.message||e}`)}}
+  out.textContent=lines.join('\n')}
 
 /* ---------- settings ---------- */
 function renderSettings(){const T=S.targets;tKcal.value=T.kcal;tP.value=T.p;tC.value=T.c;tF.value=T.f}
