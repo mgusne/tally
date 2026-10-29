@@ -83,8 +83,12 @@ nav.tabs svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1
 .meal .mh{display:flex;justify-content:space-between;align-items:center;padding:12px 0}
 .meal .mh h2{margin:0;display:flex;align-items:center;gap:8px;font-size:16px}
 .meal .mh h2 em{width:8px;height:8px;border-radius:50%;font-style:normal}
-.meal .mh .t{font-size:13px;color:var(--mute);font-variant-numeric:tabular-nums}
-.meal .mh .t b{color:var(--ink);font-weight:600;font-size:15px}
+.meal .mh .t{font-size:13px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
+.meal .mh .t b{color:var(--ink);font-weight:600;font-size:16px}
+.meal .mm{display:flex;gap:14px;padding:0 0 10px;font-size:12.5px;color:var(--mute);font-variant-numeric:tabular-nums}
+.meal .mm span b{color:var(--ink);font-weight:600}
+.meal .mm span::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:1px}
+.meal .mm .mp::before{background:var(--p)} .meal .mm .mc::before{background:var(--c)} .meal .mm .mf::before{background:var(--f)}
 .meal .add{width:32px;height:32px;border-radius:50%;border:1px solid var(--line);font-size:20px;line-height:1;display:inline-flex;align-items:center;justify-content:center;color:var(--ink)}
 .meal .entries{border-top:1px solid var(--line)}
 .meal .none{color:var(--mute);font-size:13px;padding:10px 0 12px;border-top:1px solid var(--line)}
@@ -198,9 +202,9 @@ label.f{display:block;font-size:12.5px;color:var(--mute);margin-bottom:5px}
 <!-- TRENDS -->
 <section class="screen" id="s-trends">
   <h1 style="margin-bottom:14px">Trends</h1>
-  <div class="seg"><button class="on" onclick="setRange(7,this)">7 days</button><button onclick="setRange(30,this)">30 days</button><button onclick="setRange(90,this)">90 days</button></div>
+  <div class="seg"><button class="on" onclick="setRange(7,this)">Week</button><button onclick="setRange(30,this)">Month</button><button onclick="setRange(90,this)">3 months</button></div>
   <div class="stack">
-    <div class="card"><div class="row between" style="margin-bottom:6px"><h2 style="margin:0">Days on target</h2><span class="muted small">±10 % <em class="dot g"></em> ±20 % <em class="dot y"></em> more <em class="dot r"></em></span></div><div id="cal"></div></div>
+    <div class="card"><div class="row between" style="margin-bottom:6px"><h2 style="margin:0">On target</h2><span class="muted small">±10 % <em class="dot g"></em> ±20 % <em class="dot y"></em> more <em class="dot r"></em></span></div><div id="cal"></div></div>
     <div class="stats" id="stats"></div>
     <div class="card"><h2>Average macro split</h2><div id="split"></div></div>
     <div class="card">
@@ -314,7 +318,8 @@ function renderToday(){
   for(const k of ['p','c','f']){document.getElementById(k+'Txt').textContent=r0(t[k]);document.getElementById(k+'T').textContent=' / '+T[k]+' g';
     document.getElementById(k+'Bar').style.width=Math.min(t[k]/T[k]*100,100)+'%'}
   document.getElementById('log').innerHTML=MEALS.map((m,i)=>{const es=entries.filter(e=>e.meal===m);const pm=perMeal[i];
-    return `<div class="card meal"><div class="mh"><h2><em style="background:var(--m${i+1})"></em>${m}</h2><div class="row"><span class="t"><b>${r0(pm.kcal)}</b> kcal${es.length?` · P ${r0(pm.p)} C ${r0(pm.c)} F ${r0(pm.f)}`:''}</span><button class="add" onclick="openAdd('${m}')" aria-label="Add to ${m}">+</button></div></div>
+    return `<div class="card meal"><div class="mh"><h2><em style="background:var(--m${i+1})"></em>${m}</h2><div class="row"><span class="t"><b>${r0(pm.kcal)}</b> kcal</span><button class="add" onclick="openAdd('${m}')" aria-label="Add to ${m}">+</button></div></div>
+      ${es.length?`<div class="mm"><span class="mp">Protein <b>${r0(pm.p)} g</b></span><span class="mc">Carbs <b>${r0(pm.c)} g</b></span><span class="mf">Fat <b>${r0(pm.f)} g</b></span></div>`:''}
       ${es.length?`<div class="entries">${es.map(e=>`<div class="entry"><div><div class="n">${esc(e.name)}</div><div class="d">${esc(e.desc)} · P ${r0(e.p)} C ${r0(e.c)} F ${r0(e.f)}</div></div>
       <div class="row"><span class="k">${r0(e.kcal)}</span><button class="x" onclick="removeEntry('${e.id}')" aria-label="Remove">×</button></div></div>`).join('')}</div>`:`<div class="none">Nothing yet</div>`}</div>`}).join('')}
 function removeEntry(id){S.log[day]=(S.log[day]||[]).filter(e=>e.id!==id);save();renderToday()}
@@ -424,7 +429,7 @@ function quickLog(saveIt){const name=document.getElementById('qn').value.trim()|
   const per100=document.querySelector('#qmode .on').textContent==='Per 100 g';const g=+document.getElementById('qg').value||100;
   const meal=document.querySelector('#meals .on').textContent;
   let portion=per100?scale(v,g):v;
-  if(saveIt){const base=per100?v:scale(v,10000/g);S.foods.unshift({id:uid(),name,brand:'',per100:base,serving:{label:g+' g',g}});save()}
+  if(saveIt){const base=per100?v:scale(v,10000/g);S.foods.unshift({id:uid(),name,brand:'',barcode:window._lastCode||undefined,per100:base,serving:{label:g+' g',g}});window._lastCode=null;save()}
   addEntry({name,desc:per100?g+' g':'1 portion',meal,...portion});closeSheet()}
 
 /* ---------- barcode scanner ---------- */
@@ -434,22 +439,28 @@ function openScan(){openSheet(`<h2>Scan barcode</h2><div id="scanWrap"><video id
   <div class="row"><input id="manualCode" inputmode="numeric" placeholder="Or type the number"><button class="btn sm" onclick="foundCode(document.getElementById('manualCode').value.trim())">Look up</button></div>`);
   startScan()}
 async function startScan(){const vid=document.getElementById('vid');const msg=document.getElementById('scanMsg');
-  try{_stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});vid.srcObject=_stream;await vid.play()}
+  try{_stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});vid.srcObject=_stream;await vid.play()}
   catch(e){msg.textContent='Camera not available. Type the barcode number instead.';return}
-  if('BarcodeDetector'in window){const det=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128']});
-    _scanTimer=setInterval(async()=>{if(!_stream)return;try{const codes=await det.detect(vid);if(codes.length){foundCode(codes[0].rawValue)}}catch(e){}},350)}
-  else{try{if(!window.ZXingBrowser){await loadScript('https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js')}
-      _zx=new ZXingBrowser.BrowserMultiFormatReader();_zx.decodeFromVideoElement(vid,(res)=>{if(res&&_stream)foundCode(res.getText())})}
-    catch(e){msg.textContent='Scanner library did not load. Type the barcode number instead.'}}}
-function stopScan(){clearInterval(_scanTimer);_scanTimer=null;if(_zx){try{_zx.reset()}catch(e){}_zx=null}if(_stream){_stream.getTracks().forEach(t=>t.stop());_stream=null}}
+  let native=false;
+  if('BarcodeDetector'in window){try{const fm=await BarcodeDetector.getSupportedFormats();native=fm.includes('ean_13')}catch(e){}}
+  if(native){msg.textContent='Scanning… hold the product barcode (the striped one) inside the frame.';const det=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128','qr_code']});
+    _scanTimer=setInterval(async()=>{if(!_stream)return;try{const codes=await det.detect(vid);if(codes.length)foundCode(codes[0].rawValue,codes[0].format)}catch(e){}},300)}
+  else{msg.textContent='Loading scanner…';
+    try{if(!window.ZXingBrowser)await loadScript('https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js');
+      _zx=new ZXingBrowser.BrowserMultiFormatReader();msg.textContent='Scanning… hold the product barcode (the striped one) inside the frame.';
+      _zx=await _zx.decodeFromVideoElement(vid,(res)=>{if(res&&_stream)foundCode(res.getText(),String(res.getBarcodeFormat()))})}
+    catch(e){msg.textContent='Scanner failed to start ('+(e.message||e)+'). Type the barcode number instead.'}}}
+function stopScan(){clearInterval(_scanTimer);_scanTimer=null;if(_zx){try{(_zx.stop||_zx.reset).call(_zx)}catch(e){}_zx=null}if(_stream){_stream.getTracks().forEach(t=>t.stop());_stream=null}}
 function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
 let _busy=false;
-async function foundCode(code){if(!code||_busy)return;_busy=true;stopScan();
-  const msg=document.getElementById('scanMsg');if(msg)msg.textContent='Looking up '+code+'…';
+async function foundCode(code,format){if(!code||_busy)return;const msg=document.getElementById('scanMsg');
+  if(!/^\d{8,14}$/.test(code)){if(msg)msg.textContent=(/qr/i.test(format||'')?'That is a QR code, not a product barcode. ':'Read "'+code.slice(0,20)+'" — not a product code. ')+'Look for the striped EAN barcode near the nutrition table.';return}
+  _busy=true;stopScan();if(navigator.vibrate)navigator.vibrate(40);
+  if(msg)msg.textContent='Found '+code+' — looking it up…';
   const local=S.foods.find(f=>f.barcode===code);if(local){_busy=false;portionFood(local.id);return}
   const f=await lookupBarcode(code);_busy=false;
-  if(!f){if(msg)msg.textContent='No product found for '+code+'. Use Quick add and save it with this code.';window._lastCode=code;return}
-  if(!f.per100.kcal){toast('Product found but has no nutrition data')}
+  if(!f){if(msg)msg.textContent='Found '+code+' but it is not in Open Food Facts. Use Quick add, it will be saved with this barcode.';window._lastCode=code;return}
+  if(!f.per100.kcal)toast('Product found but has no nutrition data');
   portionFood(null,f)}
 
 /* ---------- library ---------- */
@@ -474,20 +485,24 @@ function newRecipe(){_editId=null;_ings=[];
   <textarea id="rtext" rows="6" placeholder="200 g chicken breast&#10;1 tbsp olive oil&#10;400 ml coconut milk&#10;150 g rice"></textarea>
   <div class="grid2" style="margin:10px 0 16px"><button class="btn" onclick="parseIngredients()">Match ingredients</button>
     <button class="btn ghost" onclick="document.getElementById('photo').click()">Photo of page</button></div>
+  <label class="f">Language on the page</label><div class="chips" id="ocrLang" style="margin:-6px 0 14px">${[['eng','English'],['rus','Русский'],['deu','Deutsch'],['fra','Français'],['ita','Italiano']].map(([c,n])=>`<button class="chip ${(S.ocrLang||'eng')===c?'on':''}" data-l="${c}" onclick="pickChip(this);S.ocrLang='${c}';save()">${n}</button>`).join('')}</div>
   <input type="file" id="photo" accept="image/*" capture="environment" style="display:none" onchange="ocr(this.files[0])">
   <p class="muted small" id="ocrMsg" style="display:none;margin:-8px 0 12px"></p>`)}
 function editRecipe(id){const r=S.recipes.find(x=>x.id===id);_editId=id;_ings=r.ingredients.map(i=>({...i}));
   openSheet(`<h2>Edit recipe</h2><label class="f">Name</label><input id="rn" value="${esc(r.name)}">`);showIngredients(r.servings)}
 
 /* parse "200 g chicken breast" style lines */
-const UNITS={g:1,gram:1,grams:1,gr:1,kg:1000,ml:1,l:1000,litre:1000,liter:1000,tbsp:15,tablespoon:15,tablespoons:15,tsp:5,teaspoon:5,teaspoons:5,cup:240,cups:240,oz:28.35,ounce:28.35,ounces:28.35,lb:453.6,lbs:453.6,pound:453.6,pounds:453.6};
+const UNITS={'г':1,'гр':1,'грамм':1,'грамма':1,'граммов':1,'кг':1000,'мл':1,'л':1000,'стл':15,'ст.л':15,'чл':5,'ч.л':5,'стакан':240,'стакана':240,'стаканов':240,g:1,gram:1,grams:1,gr:1,kg:1000,ml:1,l:1000,litre:1000,liter:1000,tbsp:15,tablespoon:15,tablespoons:15,tsp:5,teaspoon:5,teaspoons:5,cup:240,cups:240,oz:28.35,ounce:28.35,ounces:28.35,lb:453.6,lbs:453.6,pound:453.6,pounds:453.6};
 const FRAC={'½':.5,'¼':.25,'¾':.75,'⅓':.333,'⅔':.667,'⅛':.125};
 function parseLine(line){let s=line.replace(/^[\s\-•*·]+/,'').trim();if(!s)return null;
-  const m=s.match(/^((?:\d+[\d.,\/]*\s*)?[½¼¾⅓⅔⅛]?)\s*([a-zA-Z]+\.?)?\s+(.+)$/);
+  // "Мука — 200 г" / "Flour: 200 g" (name first) → rewrite as "200 г Мука"
+  const nf=s.match(/^(.+?)\s*[-–—:]\s*([\d.,\/½¼¾⅓⅔⅛]+)\s*([\p{L}.]+)?\s*$/u);
+  if(nf&&!/^\d/.test(nf[1]))s=`${nf[2]} ${nf[3]||''} ${nf[1]}`.replace(/\s+/g,' ').trim();
+  const m=s.match(/^((?:\d+[\d.,\/]*\s*)?[½¼¾⅓⅔⅛]?)\s*([\p{L}.]+)?\s+(.+)$/u);
   let qty=0,unit='',name=s;
   if(m){const qs=m[1].trim();if(qs){qty=0;for(const ch of qs){if(FRAC[ch])qty+=FRAC[ch]}const num=qs.replace(/[½¼¾⅓⅔⅛]/g,'').trim();
       if(num){if(num.includes('/')){const [a,b]=num.split('/');qty+=(+a)/(+b||1)}else qty+=parseFloat(num.replace(',','.'))||0}}
-    const u=(m[2]||'').toLowerCase().replace('.','');if(UNITS[u]!==undefined){unit=u;name=m[3]}else if(m[2]){name=(m[2]+' '+m[3]).trim();if(!qs)name=s}else name=m[3]}
+    const u=(m[2]||'').toLowerCase().replace(/\.$/,'').replace('ст.л','стл').replace('ч.л','чл');if(UNITS[u]!==undefined){unit=u;name=m[3]}else if(m[2]){name=(m[2]+' '+m[3]).trim();if(!qs)name=s}else name=m[3]}
   const g=unit?Math.round(qty*UNITS[unit]):'';
   return {name:name.replace(/\(.*?\)/g,'').replace(/,.*$/,'').trim(),g,qtyNote:unit?'':(qty?qty+' ×':''),kcal:'',p:'',c:'',f:'',src:''}}
 function parseIngredients(){const text=document.getElementById('rtext').value;const name=document.getElementById('rn').value;
@@ -504,7 +519,7 @@ async function autoMatchOnline(){for(let k=0;k<_ings.length;k++){const i=_ings[k
 function setStatus(k,t,ok){const el=document.getElementById('st'+k);if(el){el.textContent=t;el.classList.toggle('ok',!!ok)}}
 function fillRow(k){const i=_ings[k];for(const key of ['kcal','p','c','f']){const el=document.getElementById(key+k);if(el)el.value=i[key]}setStatus(k,i.src,true);recalc()}
 function showIngredients(servings){const body=document.getElementById('sheetBody');
-  body.insertAdjacentHTML('beforeend',`<p class="muted small" style="margin:8px 0 12px">Check grams and the per-100 g values. Tap a name to re-search it.</p>
+  body.insertAdjacentHTML('beforeend',`<p class="muted small" style="margin:8px 0 12px">Check grams and the per-100 g values. The food database is English-only: retype a name in English and tap search if a line found no match.</p>
   <div id="ings">${_ings.map((i,k)=>ingRow(i,k)).join('')}</div>
   <button class="btn ghost sm" style="margin:10px 0 16px" onclick="_ings.push({name:'',g:'',kcal:'',p:'',c:'',f:'',src:''});document.getElementById('ings').insertAdjacentHTML('beforeend',ingRow(_ings[_ings.length-1],_ings.length-1))">+ Add line</button>
   <div class="row" style="margin-bottom:12px"><div style="flex:1"><label class="f">Servings this makes</label><input type="number" id="rs" inputmode="decimal" value="${servings}" oninput="recalc()"></div></div>
@@ -530,11 +545,11 @@ function saveRecipe(){const name=document.getElementById('rn').value.trim()||'Re
   if(_editId)S.recipes=S.recipes.map(r=>r.id===_editId?rec:r);else S.recipes.unshift(rec);save();closeSheet();renderRecipes();toast('Recipe saved')}
 
 /* OCR of a cookbook page */
-async function ocr(file){if(!file)return;const msg=document.getElementById('ocrMsg');msg.style.display='block';msg.textContent='Loading text recognition (first time ~10 MB)…';
+async function ocr(file){if(!file)return;const msg=document.getElementById('ocrMsg');msg.style.display='block';msg.textContent='Loading text recognition (first time per language ~10 MB)…';
   try{if(!window.Tesseract)await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
     msg.textContent='Reading the page…';
     const img=await downscale(file,1600);
-    const {data}=await Tesseract.recognize(img,'eng',{logger:m=>{if(m.status==='recognizing text')msg.textContent='Reading… '+Math.round(m.progress*100)+'%'}});
+    const {data}=await Tesseract.recognize(img,S.ocrLang||'eng',{logger:m=>{if(m.status==='recognizing text')msg.textContent='Reading… '+Math.round(m.progress*100)+'%'}});
     const lines=data.text.split('\n').map(l=>l.trim()).filter(l=>/\d/.test(l)&&l.length>3);
     const ta=document.getElementById('rtext');ta.value=(lines.length?lines:data.text.split('\n').filter(l=>l.trim())).join('\n');
     msg.textContent='Done. Keep only the ingredient lines, fix any misreads, then match.'}
@@ -548,14 +563,19 @@ function lastDays(n){const out=[];const d=new Date();for(let i=n-1;i>=0;i--){con
 function renderTrends(){const days=lastDays(_range);const T=S.targets;
   const rows=days.map(dd=>({d:dd,...totals(S.log[dd]||[])}));const logged=rows.filter(r=>r.kcal>0);
   // calendar
-  const todayS=iso(new Date());const first=new Date(days[0]+'T12:00:00');const months=[];
-  for(let m=new Date(first.getFullYear(),first.getMonth(),1);m<=new Date();m.setMonth(m.getMonth()+1))months.push(new Date(m));
-  document.getElementById('cal').innerHTML=months.map(m=>{const y=m.getFullYear(),mo=m.getMonth();const n=new Date(y,mo+1,0).getDate();const off=(new Date(y,mo,1).getDay()+6)%7;
-    let cells='<div class="wd">M</div><div class="wd">T</div><div class="wd">W</div><div class="wd">T</div><div class="wd">F</div><div class="wd">S</div><div class="wd">S</div>'+'<div></div>'.repeat(off);
-    for(let d=1;d<=n;d++){const ds=`${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;const k=totals(S.log[ds]||[]).kcal;
-      let cls='';if(ds>todayS)cls='future';else if(k>0){const dev=Math.abs(k-T.kcal)/T.kcal;cls=dev<=.10?'g':dev<=.20?'y':'r'}
-      cells+=`<button class="day ${cls} ${ds===todayS?'today':''}" title="${r0(k)} kcal" onclick="day='${ds}';go('today')">${d}</button>`}
-    return `<div class="month"><h3>${m.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</h3><div class="cal">${cells}</div></div>`}).join('');
+  const todayS=iso(new Date());const cell=(ds,label)=>{const k=totals(S.log[ds]||[]).kcal;let cls='';
+    if(ds>todayS)cls='future';else if(k>0){const dev=Math.abs(k-T.kcal)/T.kcal;cls=dev<=.10?'g':dev<=.20?'y':'r'}
+    return `<button class="day ${cls} ${ds===todayS?'today':''}" onclick="day='${ds}';go('today')">${label}</button>`};
+  const WD='<div class="wd">M</div><div class="wd">T</div><div class="wd">W</div><div class="wd">T</div><div class="wd">F</div><div class="wd">S</div><div class="wd">S</div>';
+  const monthGrid=(y,mo)=>{const n=new Date(y,mo+1,0).getDate();const off=(new Date(y,mo,1).getDay()+6)%7;let cells=WD+'<div></div>'.repeat(off);
+    for(let d=1;d<=n;d++)cells+=cell(`${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`,d);
+    return `<div class="month"><h3>${new Date(y,mo,1).toLocaleDateString(undefined,{month:'long',year:'numeric'})}</h3><div class="cal">${cells}</div></div>`};
+  let calHtml='';
+  if(_range===7){const end=new Date();const start=new Date(end);start.setDate(end.getDate()-6);const w=[];
+    for(let i=0;i<7;i++){const d=new Date(start);d.setDate(start.getDate()+i);w.push(d)}
+    calHtml=`<div class="month"><h3>${w[0].toLocaleDateString(undefined,{day:'numeric',month:'short'})} – ${w[6].toLocaleDateString(undefined,{day:'numeric',month:'short'})}</h3><div class="cal">${w.map(d=>`<div class="wd">${d.toLocaleDateString(undefined,{weekday:'narrow'})}</div>`).join('')}${w.map(d=>cell(iso(d),d.getDate())).join('')}</div></div>`}
+  else{const now=new Date();const k=_range===30?1:3;for(let i=k-1;i>=0;i--){const m=new Date(now.getFullYear(),now.getMonth()-i,1);calHtml+=monthGrid(m.getFullYear(),m.getMonth())}}
+  document.getElementById('cal').innerHTML=calHtml;
   // stats
   const avg=k=>logged.length?logged.reduce((a,r)=>a+r[k],0)/logged.length:0;
   const onTarget=logged.filter(r=>r.kcal<=T.kcal).length;
