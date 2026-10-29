@@ -229,6 +229,11 @@ label.f{display:block;font-size:12.5px;color:var(--mute);margin-bottom:5px}
       <button class="btn ghost" onclick="calcTargets()">Fill targets from estimate</button>
     </div>
     <div class="card">
+      <h2>Food database</h2>
+      <p class="muted small" style="margin-bottom:8px">Text search uses USDA FoodData Central. The built-in demo key allows about 30 searches an hour; a personal key is free at api.data.gov/signup and removes that limit.</p>
+      <div class="row"><input id="usdaKey" placeholder="Your USDA API key (optional)"><button class="btn sm" onclick="S.usdaKey=document.getElementById('usdaKey').value.trim();save();toast('Key saved')">Save</button></div>
+    </div>
+    <div class="card">
       <h2>Backup</h2>
       <div class="grid2">
         <button class="btn ghost" onclick="exportData()">Export JSON</button>
@@ -315,7 +320,7 @@ function openAdd(meal){_presetMeal=meal||null;openSheet(`<h2>Add food</h2>
   <div class="grid2" style="margin-bottom:14px"><button class="btn" onclick="openScan()">Scan barcode</button><button class="btn ghost" onclick="openQuick()">Quick add</button></div>
   <input id="q" placeholder="Search saved foods and recipes" oninput="searchLocal()" autocomplete="off">
   <div id="results" style="margin-top:6px"></div>
-  <button class="btn ghost" style="margin-top:12px" onclick="searchOnline()">Search Open Food Facts</button>`);
+  <button class="btn ghost" style="margin-top:12px" onclick="searchOnline()">Search online</button>`);
   setTimeout(()=>document.getElementById('q').focus(),300);searchLocal()}
 
 function searchLocal(){const q=(document.getElementById('q').value||'').toLowerCase().trim();const R=document.getElementById('results');
@@ -337,18 +342,25 @@ function offToFood(p){const n=p.nutriments||{};
 async function lookupBarcode(code){try{
     const r=await fetch(`${OFF}/api/v2/product/${encodeURIComponent(code)}.json?fields=${FIELDS}`);const j=await r.json();
     if(j.status!==1||!j.product)return null;return offToFood(j.product)}catch(e){return null}}
-async function offSearch(q,n){
-  try{const r=await fetch(`${OFF}/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=${n}&fields=${FIELDS}`);
-    if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();return (j.products||[]).map(offToFood)}
-  catch(e1){const r=await fetch(`https://search.openfoodfacts.org/search?q=${encodeURIComponent(q)}&page_size=${n}&fields=${FIELDS}`);
-    if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();return (j.hits||[]).map(offToFood)}}
+function usdaToFood(x){const g=id=>{const n=(x.foodNutrients||[]).find(f=>f.nutrientId===id||+f.nutrientNumber===id);return n?+n.value||0:0};
+  let kcal=g(1008);if(!kcal)kcal=g(1062)/4.184;
+  const name=(x.description||'').toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
+  return {id:uid(),name,brand:x.brandOwner||x.brandName||(x.dataType==='Branded'?'':x.dataType==='Foundation'||x.dataType==='SR Legacy'?'USDA':''),barcode:x.gtinUpc||undefined,
+    per100:{kcal:+kcal||0,p:g(1003),c:g(1005),f:g(1004)},serving:x.servingSize&&/g/i.test(x.servingSizeUnit||'')?{label:x.servingSize+' g',g:+x.servingSize}:null}}
+async function offSearch(q,n){const key=S.usdaKey||'DEMO_KEY';
+  const r=await fetch(`https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(key)}&query=${encodeURIComponent(q)}&pageSize=${n}&dataType=Foundation,SR%20Legacy,Branded`);
+  if(r.status===429)throw new Error('search limit reached — add your own free USDA key in Settings');
+  if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();
+  const items=(j.foods||[]).map(usdaToFood);
+  // raw/generic foods first, then branded
+  return items.sort((a,b)=>(a.brand==='USDA'?0:1)-(b.brand==='USDA'?0:1))}
 async function searchOnline(){const q=(document.getElementById('q')?.value||'').trim();if(!q){toast('Type something first');return}
   const R=document.getElementById('results');R.innerHTML='<div class="empty" style="padding:20px">Searching…</div>';
   try{const items=(await offSearch(q,15)).filter(f=>f.per100.kcal>0);
-    if(!items.length){R.innerHTML='<div class="empty" style="padding:20px">No online results. Use Quick add to enter it by hand.</div>';return}
+    if(!items.length){R.innerHTML='<div class="empty" style="padding:20px">No results. Try a simpler word, or use Quick add.</div>';return}
     window._online=items;
     R.innerHTML=items.map((f,i)=>`<button class="result" onclick="portionFood(null,_online[${i}])"><div><div class="n">${esc(f.name)}</div><div class="d">${esc(f.brand)}${f.brand?' · ':''}${r0(f.per100.kcal)} kcal / 100 g</div></div><span>›</span></button>`).join('')
-  }catch(e){R.innerHTML=`<div class="empty" style="padding:20px">Online search failed (${esc(e.message||e)}). If you opened this file from a preview or Files, outside requests are blocked — use the hosted https address.</div>`}}
+  }catch(e){R.innerHTML=`<div class="empty" style="padding:20px">Online search failed (${esc(e.message||e)}). </div>`}}
 
 /* ---------- portion + log ---------- */
 let _food=null;
@@ -566,15 +578,15 @@ function renderWeight(days){const w=S.weights||{};const first=days[0];const pts=
   list.innerHTML=`Latest ${last.v} kg (${last.d.slice(5)})${pts.length>1?` · ${diff>0?'+':''}${diff.toFixed(1)} kg over this period`:''} <button class="x" style="font-size:12px" onclick="delete S.weights['${last.d}'];save();renderTrends()">remove latest</button>`}
 
 async function testConn(){const out=document.getElementById('connOut');out.textContent='Testing…\n';
-  const tests=[['Product lookup',`${OFF}/api/v2/product/3017620422003.json?fields=product_name`],['Text search (classic)',`${OFF}/cgi/search.pl?search_terms=coffee&search_simple=1&action=process&json=1&page_size=1&fields=product_name`],['Text search (new)',`https://search.openfoodfacts.org/search?q=coffee&page_size=1&fields=product_name`]];
+  const tests=[['Product lookup',`${OFF}/api/v2/product/3017620422003.json?fields=product_name`],['Text search (USDA)',`https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(S.usdaKey||'DEMO_KEY')}&query=coffee&pageSize=1`]];
   let lines=[`Page: ${location.protocol}//${location.host}`,`Browser: ${navigator.userAgent.replace(/\(.*?\)/g,'').trim().slice(0,60)}`,`Online: ${navigator.onLine}`];
   for(const [n,u] of tests){try{const t=Date.now();const r=await fetch(u);const j=await r.json().catch(()=>({}));
-      lines.push(`${n}: HTTP ${r.status} in ${Date.now()-t} ms${j.product?.product_name?' – '+j.product.product_name:''}${(j.products||j.hits)?' – '+(j.products||j.hits).length+' result(s)':''}`)}
+      lines.push(`${n}: HTTP ${r.status} in ${Date.now()-t} ms${j.product?.product_name?' – '+j.product.product_name:''}${j.foods?' – '+j.foods.length+' result(s)':''}`)}
     catch(e){lines.push(`${n}: ${e.message||e}`)}}
   out.textContent=lines.join('\n')}
 
 /* ---------- settings ---------- */
-function renderSettings(){const T=S.targets;tKcal.value=T.kcal;tP.value=T.p;tC.value=T.c;tF.value=T.f}
+function renderSettings(){document.getElementById('usdaKey').value=S.usdaKey||'';const T=S.targets;tKcal.value=T.kcal;tP.value=T.p;tC.value=T.c;tF.value=T.f}
 function saveTargets(){S.targets={kcal:+tKcal.value||2000,p:+tP.value||0,c:+tC.value||0,f:+tF.value||0};save();toast('Targets saved')}
 function calcTargets(){const w=+cW.value,h=+cH.value,a=+cAge.value;if(!w||!h||!a){toast('Fill in age, height and weight');return}
   const bmr=10*w+6.25*h-5*a+(cSex.value==='m'?5:-161);const kcal=Math.round((bmr*+cAct.value+ +cGoal.value)/10)*10;
