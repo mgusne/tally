@@ -136,6 +136,16 @@ label.f{display:block;font-size:12.5px;color:var(--mute);margin-bottom:5px}
 .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
 .stat b{display:block;font-size:26px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1.1}
 .stat span{font-size:12.5px;color:var(--mute)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 6px 0 2px;vertical-align:middle;font-style:normal}
+.dot.g,.day.g{background:#3fa86b} .dot.y,.day.y{background:#f2b53a} .dot.r,.day.r{background:#e4503b}
+.month{margin-top:12px}
+.month h3{font-size:13px;font-weight:600;color:var(--mute);margin-bottom:6px}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal .wd{font-size:10px;color:var(--mute);text-align:center}
+.day{aspect-ratio:1;border-radius:7px;background:var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;font-variant-numeric:tabular-nums;color:var(--mute)}
+.day.g,.day.y,.day.r{color:#fff;font-weight:600}
+.day.future{background:transparent;border:1px dashed var(--line)}
+.day.today{outline:2px solid var(--ink);outline-offset:1px}
 .chart{width:100%;height:auto;display:block;overflow:visible}
 .chart text{font-size:10px;fill:var(--mute)}
 .chart .bar{fill:var(--ink)} .chart .bar.over{fill:var(--accent)} .chart .bar.none{fill:var(--line)}
@@ -190,7 +200,7 @@ label.f{display:block;font-size:12.5px;color:var(--mute);margin-bottom:5px}
   <h1 style="margin-bottom:14px">Trends</h1>
   <div class="seg"><button class="on" onclick="setRange(7,this)">7 days</button><button onclick="setRange(30,this)">30 days</button><button onclick="setRange(90,this)">90 days</button></div>
   <div class="stack">
-    <div class="card"><h2>Calories per day</h2><svg class="chart" id="kcalChart" viewBox="0 0 320 150"></svg></div>
+    <div class="card"><div class="row between" style="margin-bottom:6px"><h2 style="margin:0">Days on target</h2><span class="muted small">±10 % <em class="dot g"></em> ±20 % <em class="dot y"></em> more <em class="dot r"></em></span></div><div id="cal"></div></div>
     <div class="stats" id="stats"></div>
     <div class="card"><h2>Average macro split</h2><div id="split"></div></div>
     <div class="card">
@@ -345,22 +355,24 @@ async function lookupBarcode(code){try{
 function usdaToFood(x){const g=id=>{const n=(x.foodNutrients||[]).find(f=>f.nutrientId===id||+f.nutrientNumber===id);return n?+n.value||0:0};
   let kcal=g(1008);if(!kcal)kcal=g(1062)/4.184;
   const name=(x.description||'').toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
-  return {id:uid(),name,brand:x.brandOwner||x.brandName||(x.dataType==='Branded'?'':x.dataType==='Foundation'||x.dataType==='SR Legacy'?'USDA':''),barcode:x.gtinUpc||undefined,
+  return {id:uid(),name,brand:x.brandOwner||x.brandName||(x.dataType==='Branded'?'':x.dataType!=='Branded'?'Generic':''),barcode:x.gtinUpc||undefined,
     per100:{kcal:+kcal||0,p:g(1003),c:g(1005),f:g(1004)},serving:x.servingSize&&/g/i.test(x.servingSizeUnit||'')?{label:x.servingSize+' g',g:+x.servingSize}:null}}
-async function offSearch(q,n){const key=S.usdaKey||'DEMO_KEY';
-  const r=await fetch(`https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(key)}&query=${encodeURIComponent(q)}&pageSize=${n}&dataType=Foundation,SR%20Legacy,Branded`);
+async function usdaFetch(q,n,page,types){const key=S.usdaKey||'DEMO_KEY';
+  const r=await fetch(`https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(key)}&query=${encodeURIComponent(q)}&pageSize=${n}&pageNumber=${page}&dataType=${types}`);
   if(r.status===429)throw new Error('search limit reached — add your own free USDA key in Settings');
-  if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();
-  const items=(j.foods||[]).map(usdaToFood);
-  // raw/generic foods first, then branded
-  return items.sort((a,b)=>(a.brand==='USDA'?0:1)-(b.brand==='USDA'?0:1))}
-async function searchOnline(){const q=(document.getElementById('q')?.value||'').trim();if(!q){toast('Type something first');return}
-  const R=document.getElementById('results');R.innerHTML='<div class="empty" style="padding:20px">Searching…</div>';
-  try{const items=(await offSearch(q,15)).filter(f=>f.per100.kcal>0);
-    if(!items.length){R.innerHTML='<div class="empty" style="padding:20px">No results. Try a simpler word, or use Quick add.</div>';return}
-    window._online=items;
-    R.innerHTML=items.map((f,i)=>`<button class="result" onclick="portionFood(null,_online[${i}])"><div><div class="n">${esc(f.name)}</div><div class="d">${esc(f.brand)}${f.brand?' · ':''}${r0(f.per100.kcal)} kcal / 100 g</div></div><span>›</span></button>`).join('')
-  }catch(e){R.innerHTML=`<div class="empty" style="padding:20px">Online search failed (${esc(e.message||e)}). </div>`}}
+  if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();return (j.foods||[]).map(usdaToFood)}
+// generic foods (USDA Foundation / SR Legacy / Survey) first, branded products after
+async function offSearch(q,n,page=1){const gen=await usdaFetch(q,n,page,'Foundation,SR%20Legacy,Survey%20(FNDDS)');
+  if(gen.length>=n)return gen;const br=await usdaFetch(q,n-gen.length,page,'Branded');return gen.concat(br)}
+let _page=1,_lastQ='';
+async function searchOnline(more){const q=(document.getElementById('q')?.value||'').trim();if(!q){toast('Type something first');return}
+  const R=document.getElementById('results');if(!more||q!==_lastQ){_page=1;window._online=[];R.innerHTML='<div class="empty" style="padding:20px">Searching…</div>'}else _page++;_lastQ=q;
+  try{const items=(await offSearch(q,20,_page)).filter(f=>f.per100.kcal>0||f.brand==='Generic');
+    if(!items.length&&_page===1){R.innerHTML='<div class="empty" style="padding:20px">No results. Try a simpler word, or use Quick add.</div>';return}
+    const base=window._online.length;window._online=window._online.concat(items);
+    R.innerHTML=window._online.map((f,i)=>`<button class="result" onclick="portionFood(null,_online[${i}])"><div><div class="n">${esc(f.name)}</div><div class="d">${esc(f.brand)}${f.brand?' · ':''}${r0(f.per100.kcal)} kcal / 100 g</div></div><span>›</span></button>`).join('')+
+      (items.length>=20?`<button class="btn ghost sm" style="margin:12px auto 0;display:flex" onclick="searchOnline(true)">More results</button>`:'')
+  }catch(e){R.innerHTML=`<div class="empty" style="padding:20px">Online search failed (${esc(e.message||e)}).</div>`}}
 
 /* ---------- portion + log ---------- */
 let _food=null;
@@ -535,17 +547,15 @@ function setRange(n,b){_range=n;b.parentElement.querySelectorAll('button').forEa
 function lastDays(n){const out=[];const d=new Date();for(let i=n-1;i>=0;i--){const x=new Date(d);x.setDate(d.getDate()-i);out.push(iso(x))}return out}
 function renderTrends(){const days=lastDays(_range);const T=S.targets;
   const rows=days.map(dd=>({d:dd,...totals(S.log[dd]||[])}));const logged=rows.filter(r=>r.kcal>0);
-  // kcal chart
-  const W=320,H=150,pad={l:28,r:4,t:8,b:18};const maxK=Math.max(T.kcal*1.15,...rows.map(r=>r.kcal))||1;
-  const bw=(W-pad.l-pad.r)/rows.length;const y=v=>pad.t+(H-pad.t-pad.b)*(1-v/maxK);
-  const gridV=[0,T.kcal];let svg='';
-  svg+=rows.map((r,i)=>{const h=H-pad.b-y(r.kcal);const cls=r.kcal===0?'none':r.kcal>T.kcal?'over':'';const hh=r.kcal===0?2:h;
-    return `<rect class="bar ${cls}" x="${(pad.l+i*bw+bw*0.15).toFixed(1)}" y="${(H-pad.b-hh).toFixed(1)}" width="${(bw*0.7).toFixed(1)}" height="${hh.toFixed(1)}" rx="${Math.min(3,bw*0.3)}"/>`}).join('');
-  svg+=`<line class="tl" x1="${pad.l}" x2="${W-pad.r}" y1="${y(T.kcal).toFixed(1)}" y2="${y(T.kcal).toFixed(1)}"/>`;
-  svg+=`<text x="0" y="${y(T.kcal)+3}">${T.kcal}</text><text x="0" y="${H-pad.b}">0</text>`;
-  const step=_range<=7?1:_range<=30?7:30;
-  svg+=rows.map((r,i)=>(i%step===0||(_range<=7))?`<text x="${(pad.l+i*bw+bw/2).toFixed(1)}" y="${H-4}" text-anchor="middle">${_range<=7?new Date(r.d+'T12:00:00').toLocaleDateString(undefined,{weekday:'narrow'}):r.d.slice(5)}</text>`:'').join('');
-  document.getElementById('kcalChart').innerHTML=svg;
+  // calendar
+  const todayS=iso(new Date());const first=new Date(days[0]+'T12:00:00');const months=[];
+  for(let m=new Date(first.getFullYear(),first.getMonth(),1);m<=new Date();m.setMonth(m.getMonth()+1))months.push(new Date(m));
+  document.getElementById('cal').innerHTML=months.map(m=>{const y=m.getFullYear(),mo=m.getMonth();const n=new Date(y,mo+1,0).getDate();const off=(new Date(y,mo,1).getDay()+6)%7;
+    let cells='<div class="wd">M</div><div class="wd">T</div><div class="wd">W</div><div class="wd">T</div><div class="wd">F</div><div class="wd">S</div><div class="wd">S</div>'+'<div></div>'.repeat(off);
+    for(let d=1;d<=n;d++){const ds=`${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;const k=totals(S.log[ds]||[]).kcal;
+      let cls='';if(ds>todayS)cls='future';else if(k>0){const dev=Math.abs(k-T.kcal)/T.kcal;cls=dev<=.10?'g':dev<=.20?'y':'r'}
+      cells+=`<button class="day ${cls} ${ds===todayS?'today':''}" title="${r0(k)} kcal" onclick="day='${ds}';go('today')">${d}</button>`}
+    return `<div class="month"><h3>${m.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</h3><div class="cal">${cells}</div></div>`}).join('');
   // stats
   const avg=k=>logged.length?logged.reduce((a,r)=>a+r[k],0)/logged.length:0;
   const onTarget=logged.filter(r=>r.kcal<=T.kcal).length;
